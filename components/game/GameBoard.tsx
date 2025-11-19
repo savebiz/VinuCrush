@@ -1,5 +1,5 @@
 /**
- * GameBoard Component - Main game logic
+ * GameBoard Component - Main game logic (OLD VERSION - for backward compatibility)
  */
 
 'use client';
@@ -16,7 +16,6 @@ import {
 } from '@/lib/ecs/grid';
 import { removeMatched, wouldCreateMatch } from '@/lib/ecs/match';
 import { fillEmpty, clearFallingFlags, swapTiles } from '@/lib/ecs/gravity';
-import { Tile } from './Tile';
 
 interface GameBoardProps {
     initialGrid: Grid;
@@ -24,6 +23,17 @@ interface GameBoardProps {
     onMove?: (from: { x: number; y: number }, to: { x: number; y: number }) => void;
     onScore?: (points: number) => void;
 }
+
+const COLORS: Record<number, string> = {
+    1: 'from-red-500 to-red-600',
+    2: 'from-blue-500 to-blue-600',
+    3: 'from-green-500 to-green-600',
+    4: 'from-yellow-500 to-yellow-600',
+    5: 'from-purple-500 to-purple-600',
+    6: 'from-orange-500 to-orange-600',
+    0: 'from-gray-800 to-gray-900',
+    255: 'from-gray-800 to-gray-900',
+};
 
 export function GameBoard({ initialGrid, level, onMove, onScore }: GameBoardProps) {
     const [grid, setGrid] = useState<Grid>(initialGrid);
@@ -39,39 +49,26 @@ export function GameBoard({ initialGrid, level, onMove, onScore }: GameBoardProp
         let hasMatches = true;
 
         while (hasMatches) {
-            // Check for matches
             const matchCount = checkMatches(grid);
-
             if (matchCount === 0) {
                 hasMatches = false;
                 break;
             }
 
             totalMatched += matchCount;
-
-            // Wait for animation
             await new Promise((resolve) => setTimeout(resolve, 300));
 
-            // Remove matched tiles
             removeMatched(grid);
             setGrid({ ...grid });
-
-            // Wait for animation
             await new Promise((resolve) => setTimeout(resolve, 200));
 
-            // Apply gravity
             applyGravity(grid);
             setGrid({ ...grid });
-
-            // Wait for falling animation
             await new Promise((resolve) => setTimeout(resolve, 400));
 
-            // Fill empty spaces
             fillEmpty(grid);
             clearFallingFlags(grid);
             setGrid({ ...grid });
-
-            // Wait before checking for new matches
             await new Promise((resolve) => setTimeout(resolve, 300));
         }
 
@@ -93,31 +90,21 @@ export function GameBoard({ initialGrid, level, onMove, onScore }: GameBoardProp
             if (color === 0 || color === 255) return;
 
             if (!selectedTile) {
-                // Select first tile
                 setSelectedTile({ x, y });
             } else {
-                // Check if tiles are adjacent
                 const dx = Math.abs(selectedTile.x - x);
                 const dy = Math.abs(selectedTile.y - y);
                 const isAdjacent = (dx === 1 && dy === 0) || (dx === 0 && dy === 1);
 
                 if (isAdjacent) {
-                    // Check if swap would create a match
                     if (wouldCreateMatch(grid, selectedTile.x, selectedTile.y, x, y)) {
-                        // Perform swap
                         swapTiles(grid, selectedTile.x, selectedTile.y, x, y);
                         setGrid({ ...grid });
-
                         setMoves((prev) => prev + 1);
                         onMove?.(selectedTile, { x, y });
-
-                        // Process matches after a short delay
-                        setTimeout(() => {
-                            processMatches();
-                        }, 300);
+                        setTimeout(() => processMatches(), 300);
                     }
                 }
-
                 setSelectedTile(null);
             }
         },
@@ -126,7 +113,6 @@ export function GameBoard({ initialGrid, level, onMove, onScore }: GameBoardProp
 
     return (
         <div className="flex flex-col items-center gap-6">
-            {/* Stats */}
             <div className="flex gap-8 text-white">
                 <div className="text-center">
                     <div className="text-sm text-gray-400">Level</div>
@@ -142,7 +128,6 @@ export function GameBoard({ initialGrid, level, onMove, onScore }: GameBoardProp
                 </div>
             </div>
 
-            {/* Game Grid */}
             <div
                 className="grid gap-2 p-6 bg-gray-900/50 rounded-2xl backdrop-blur-sm"
                 style={{
@@ -159,17 +144,22 @@ export function GameBoard({ initialGrid, level, onMove, onScore }: GameBoardProp
                     const status = grid.Status[idx];
                     const isSelected = selectedTile?.x === x && selectedTile?.y === y;
                     const isMatched = (status & STATUS_MATCH) !== 0;
+                    const colorClass = COLORS[color] || COLORS[0];
 
                     return (
-                        <Tile
+                        <motion.button
                             key={`${x}-${y}`}
-                            color={color}
-                            x={x}
-                            y={y}
-                            isSelected={isSelected}
-                            isMatched={isMatched}
+                            className={`relative w-full h-full rounded-lg bg-gradient-to-br ${colorClass} shadow-lg ${isSelected ? 'ring-4 ring-white' : ''
+                                }`}
                             onClick={() => handleTileClick(x, y)}
-                        />
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            animate={{ scale: isMatched ? 0.8 : 1, opacity: isMatched ? 0.3 : 1 }}
+                        >
+                            {color !== 0 && color !== 255 && (
+                                <div className="absolute inset-2 rounded-md bg-white/20" />
+                            )}
+                        </motion.button>
                     );
                 })}
             </div>

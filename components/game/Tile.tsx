@@ -1,59 +1,91 @@
 /**
- * Tile Component - Renders a single tile
+ * Tile Component - Premium drag-to-swap physics
+ * Uses Framer Motion layout animations for automatic gravity
  */
 
 'use client';
 
-import { motion } from 'framer-motion';
+import { motion, PanInfo } from 'framer-motion';
+import { TileType, TILE_ASSETS } from '@/lib/constants';
+import { cn } from '@/lib/utils';
 
-interface TileProps {
-    color: number;
-    x: number;
-    y: number;
-    isSelected: boolean;
+interface TileComponentProps {
+    tile: {
+        id: string;
+        type: TileType;
+        x: number;
+        y: number;
+    };
     isMatched: boolean;
-    onClick: () => void;
+    onDragEnd: (tileId: string, info: PanInfo) => void;
+    gridSize: number;
 }
 
-const COLORS: Record<number, string> = {
-    1: 'from-red-500 to-red-600',
-    2: 'from-blue-500 to-blue-600',
-    3: 'from-green-500 to-green-600',
-    4: 'from-yellow-500 to-yellow-600',
-    5: 'from-purple-500 to-purple-600',
-    6: 'from-orange-500 to-orange-600',
-    0: 'from-gray-800 to-gray-900',
-    255: 'from-gray-800 to-gray-900',
-};
-
-export function Tile({ color, x, y, isSelected, isMatched, onClick }: TileProps) {
-    const colorClass = COLORS[color] || COLORS[0];
+export function TileComponent({ tile, isMatched, onDragEnd, gridSize }: TileComponentProps) {
+    const isIngredient = tile.type === TileType.INGREDIENT;
 
     return (
-        <motion.button
-            className={`
-        relative w-full h-full rounded-lg bg-gradient-to-br ${colorClass}
-        shadow-lg hover:shadow-xl transition-shadow
-        ${isSelected ? 'ring-4 ring-white ring-opacity-80 scale-95' : ''}
-        ${isMatched ? 'opacity-50' : 'opacity-100'}
-      `}
-            onClick={onClick}
+        <motion.div
+            key={tile.id}
+            layout // CRITICAL: Automatic gravity animation
+            drag
+            dragSnapToOrigin={true} // Snap back if invalid
+            dragElastic={0.1} // Tight, premium feel
+            dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
+            onDragEnd={(_, info) => onDragEnd(tile.id, info)}
+            className={cn(
+                'relative w-full h-full cursor-grab active:cursor-grabbing',
+                'rounded-xl overflow-hidden',
+                isIngredient && 'ring-2 ring-yellow-400 animate-glow'
+            )}
+            initial={{ scale: 0, opacity: 0, y: -50 }}
+            animate={{
+                scale: isMatched ? 0 : 1,
+                opacity: isMatched ? 0 : 1,
+                y: 0,
+            }}
+            exit={{ scale: 0, opacity: 0 }}
+            transition={{
+                layout: {
+                    type: 'spring',
+                    stiffness: 300,
+                    damping: 30,
+                },
+                scale: {
+                    type: 'spring',
+                    stiffness: 500,
+                    damping: 25,
+                },
+            }}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            animate={{
-                scale: isMatched ? 0.8 : 1,
-                opacity: isMatched ? 0.3 : 1,
-            }}
-            transition={{
-                type: 'spring',
-                stiffness: 300,
-                damping: 20,
-            }}
-            aria-label={`Tile at ${x}, ${y}`}
         >
-            {color !== 0 && color !== 255 && (
-                <div className="absolute inset-2 rounded-md bg-white/20" />
+            {/* Tile image */}
+            <div className="absolute inset-0 p-1">
+                <img
+                    src={TILE_ASSETS[tile.type]}
+                    alt={tile.type}
+                    className="w-full h-full object-contain pointer-events-none select-none"
+                    draggable={false}
+                />
+            </div>
+
+            {/* Golden glow for ingredients */}
+            {isIngredient && (
+                <>
+                    <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/20 to-orange-500/20 pointer-events-none" />
+                    <div className="absolute inset-0 border-2 border-yellow-400/50 rounded-xl pointer-events-none animate-pulse" />
+                </>
             )}
-        </motion.button>
+
+            {/* Shimmer effect */}
+            <div
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none"
+                style={{
+                    backgroundSize: '200% 100%',
+                    animation: 'shimmer 3s linear infinite',
+                }}
+            />
+        </motion.div>
     );
 }
